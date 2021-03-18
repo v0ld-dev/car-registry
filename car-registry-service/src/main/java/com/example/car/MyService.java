@@ -16,8 +16,12 @@
 
 package com.example.car;
 
+import static com.google.common.base.Preconditions.checkState;
+
+
 import com.example.car.messages.Transactions;
 import com.example.car.messages.VehicleOuterClass.Vehicle;
+import com.exonum.binding.common.crypto.PublicKey;
 import com.exonum.binding.core.blockchain.BlockchainData;
 import com.exonum.binding.core.runtime.ServiceInstanceSpec;
 import com.exonum.binding.core.service.AbstractService;
@@ -25,6 +29,7 @@ import com.exonum.binding.core.service.Configuration;
 import com.exonum.binding.core.service.ExecutionContext;
 import com.exonum.binding.core.service.ExecutionException;
 import com.exonum.binding.core.service.Node;
+import com.exonum.binding.core.storage.indices.MapIndex;
 import com.exonum.binding.core.storage.indices.ProofMapIndexProxy;
 import com.exonum.binding.core.transaction.Transaction;
 import com.google.inject.Inject;
@@ -138,6 +143,19 @@ public final class MyService extends AbstractService {
   }
   // }
 
+  @SuppressWarnings("ConstantConditions")
+  public Optional<Vehicle> findVehicle(PublicKey ownerKey, Node node) {
+    checkBlockchainInitialized(node);
+
+    return node.withServiceData(serviceData -> {
+      MySchema schema = new MySchema(serviceData);
+      MapIndex<PublicKey, Vehicle> vehicles = schema.vehiclesSEC();
+
+      return Optional.ofNullable(vehicles.get(ownerKey));
+    });
+  }
+
+
   // ci-block ci-createPublicApiHandlers {
   @Override
   public void createPublicApiHandlers(Node node, Router router) {
@@ -145,4 +163,9 @@ public final class MyService extends AbstractService {
     apiController.mount(router);
   }
   // }
+
+  private void checkBlockchainInitialized(Node node) {
+    checkState(node != null, "Service has not been fully initialized yet");
+  }
+
 }

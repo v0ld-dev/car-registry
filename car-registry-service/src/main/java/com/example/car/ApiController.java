@@ -17,11 +17,22 @@
 package com.example.car;
 
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
+import static com.exonum.binding.common.serialization.json.JsonSerializer.json;
+import static com.google.common.base.Preconditions.checkArgument;
 
+
+import com.example.car.messages.VehicleOuterClass;
+import com.exonum.binding.common.crypto.PublicKey;
 import com.exonum.binding.core.service.Node;
+import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+
+import java.util.Optional;
+import java.util.function.Function;
 
 final class ApiController {
 
@@ -34,8 +45,29 @@ final class ApiController {
   }
 
   void mount(Router router) {
-    router.get("/vehicle/:id").handler(this::findVehicle);
+    router.get("/vehicle/example1/:id").handler(this::findVehicle);
+    router.get("/vehicle/example2/:id").handler(this::findVehicleSEC);
   }
+
+  private void findVehicleSEC(RoutingContext routingContext) {
+
+    PublicKey valletId =  getRequiredParameter(routingContext.request(), "id", PublicKey::fromHexString);
+
+    Optional<VehicleOuterClass.Vehicle> vehicle = service.findVehicle(valletId, node);
+
+    if (vehicle.isPresent()) {
+      routingContext.response()
+              .putHeader(CONTENT_TYPE, "application/json")
+              .end(json().toJson(vehicle.get()));
+    } else {
+      routingContext.response()
+              .setStatusCode(HTTP_NOT_FOUND)
+              .end();
+    }
+
+
+  }
+
 
   private void findVehicle(RoutingContext routingContext) {
     // Extract the requested vehicle ID
@@ -57,4 +89,21 @@ final class ApiController {
           .end();
     }
   }
+
+  private static <T> T getRequiredParameter(HttpServerRequest request, String key,  Function<String, T> converter) {
+    return getRequiredParameter(request.params(), key, converter);
+  }
+
+  private static <T> T getRequiredParameter(MultiMap parameters, String key,  Function<String, T> converter) {
+    checkArgument(parameters.contains(key), "No required key (%s) in request parameters: %s",
+            key, parameters);
+    String parameter = parameters.get(key);
+    try {
+      return converter.apply(parameter);
+    } catch (Exception e) {
+      String message = String.format("Failed to convert parameter (%s): %s", key, e.getMessage());
+      throw new IllegalArgumentException(message);
+    }
+  }
+
 }

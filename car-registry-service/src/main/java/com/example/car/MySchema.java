@@ -19,6 +19,7 @@ package com.example.car;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.example.car.messages.VehicleOuterClass.Vehicle;
+import com.exonum.binding.common.crypto.PublicKey;
 import com.exonum.binding.common.serialization.StandardSerializers;
 import com.exonum.binding.core.service.Schema;
 import com.exonum.binding.core.storage.database.Access;
@@ -51,4 +52,10 @@ public final class MySchema implements Schema {
     return access.getProofMap(address, keySerializer, valueSerializer);
   }
   // }
+
+  public ProofMapIndexProxy<PublicKey, Vehicle> vehiclesSEC() {
+    var valueSerializer = StandardSerializers.protobuf(Vehicle.class);
+    return access.getRawProofMap(IndexAddress.valueOf("vehicles"), StandardSerializers.publicKey(),  valueSerializer);
+  }
+
 }

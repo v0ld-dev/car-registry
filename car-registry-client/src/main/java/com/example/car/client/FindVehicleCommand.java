@@ -80,7 +80,7 @@ public class FindVehicleCommand implements Callable<Integer> {
 
   private URI buildRequestUri(String serviceName) {
     var escaper = UrlEscapers.urlPathSegmentEscaper();
-    var uri = String.format("%s/api/services/%s/vehicle/%s",
+    var uri = String.format("%s/api/services/%s/vehicle/example1/%s",
         Config.NODE_JAVA_API_HOST, escaper.escape(serviceName), escaper.escape(vehicleId));
     System.out.println("uri: "+ uri);
     return URI.create(uri);
