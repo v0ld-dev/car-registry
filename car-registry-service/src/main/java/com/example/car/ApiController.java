@@ -34,6 +34,7 @@ import io.vertx.ext.web.RoutingContext;
 import java.util.Optional;
 import java.util.function.Function;
 
+
 final class ApiController {
 
   private final MyService service;
@@ -49,9 +50,13 @@ final class ApiController {
     router.get("/vehicle/example2/:id").handler(this::findVehicleSEC);
   }
 
+  /**
+   * Find by id, where id is public key
+   * @param routingContext
+   */
   private void findVehicleSEC(RoutingContext routingContext) {
-
-    PublicKey valletId =  getRequiredParameter(routingContext.request(), "id", PublicKey::fromHexString);
+    var _vehicleId = routingContext.pathParam("id");
+    PublicKey valletId =  getRequiredParameter(routingContext.request(), _vehicleId, PublicKey::fromHexString);
 
     Optional<VehicleOuterClass.Vehicle> vehicle = service.findVehicle(valletId, node);
 
@@ -77,6 +82,7 @@ final class ApiController {
     var vehicleOpt = node.withBlockchainData(
         (blockchainData) -> service.findVehicle(vehicleId, blockchainData));
     if (vehicleOpt.isPresent()) {
+      //TODO: check public key from vehicle == msg.sender. To solve this issue you need
       // Respond with the vehicle details
       var vehicle = vehicleOpt.get();
       routingContext.response()
