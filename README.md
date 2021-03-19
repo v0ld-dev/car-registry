@@ -1,38 +1,52 @@
+# LAUNCH BLOCKCHAIN
+### GENERATE
+*exonum-java generate-template --validators-count=4 --supervisor-mode simple  ./common.toml*
 
-# car-registry
+- exonum-java generate-config ./common.toml 1 --no-password --peer-address 127.0.0.1:5401
+- exonum-java generate-config ./common.toml 2 --no-password --peer-address 127.0.0.1:5402
+- exonum-java generate-config ./common.toml 3 --no-password --peer-address 127.0.0.1:5403
+- exonum-java generate-config ./common.toml 4 --no-password --peer-address 127.0.0.1:5404
 
-An Exonum service.
+> - exonum-java finalize 1/sec.toml 1/node.toml --public-configs {1,2,3,4}/pub.toml
+> - exonum-java finalize 2/sec.toml 2/node.toml --public-configs {1,2,3,4}/pub.toml
+> - exonum-java finalize 3/sec.toml 3/node.toml --public-configs {1,2,3,4}/pub.toml
+> - exonum-java finalize 4/sec.toml 4/node.toml --public-configs {1,2,3,4}/pub.toml
 
-## Project Structure
+`export RUST_LOG="${RUST_LOG-error,exonum=info,exonum-java=info,java_bindings=info}"`
 
-The project consist of the following modules:
+### RUN
+- exonum-java run --node-config 1/node.toml --artifacts-path 1/artifacts --db-path 1/db --master-key-pass pass --public-api-address 127.0.0.1:3001 --private-api-address 127.0.0.1:3011 --ejb-port 7001 > ./1/node1.log 2>&1 &
+- exonum-java run --node-config 2/node.toml --artifacts-path 2/artifacts --db-path 2/db --master-key-pass pass --public-api-address 127.0.0.1:3002 --private-api-address 127.0.0.1:3012 --ejb-port 7002 > ./2/node1.log 2>&1 &
+- exonum-java run --node-config 3/node.toml --artifacts-path 3/artifacts --db-path 3/db --master-key-pass pass --public-api-address 127.0.0.1:3003 --private-api-address 127.0.0.1:3013 --ejb-port 7003 > ./3/node1.log 2>&1 &
+- exonum-java run --node-config 4/node.toml --artifacts-path 4/artifacts --db-path 4/db --master-key-pass pass --public-api-address 127.0.0.1:3004 --private-api-address 127.0.0.1:3014 --ejb-port 7004 > ./4/node1.log 2>&1 &
 
-- `car-registry-messages`. Defines the service transaction arguments and 
-  persistent data as Protocol Buffers messages.
-  May also be used from client applications.
-- `car-registry-service`. Contains the service implementation.
-  This module produces the _service artifact_.
+# INSPECT BLOCKCHAIN
 
-## How to Build
+## LIST PEERS IN CHAIN
+curl -s http://127.0.0.1:3011/api/system/v1/info | jq
 
-### Prerequisites
+## LIST CURRENT ARTIFACT & SERVICES
+curl -s http://127.0.0.1:3001/api/services/supervisor/services | jq
 
-- [Exonum Java][ejb-installation]
-- Apache Maven
-- JDK 11+
+## GRACDEFULL SHUTDOWN
+curl -X POST "http://127.0.0.1:8081/api/system/v1/shutdown"
 
-[ejb-installation]: https://exonum.com/doc/version/latest/get-started/java-binding/#installation
 
-### Building
+# INSTALL AND LAUNCH AND DEPLOY SMART-CONTRACT
 
-To build the service artifact, invoke:
+- python3 -m venv .venv
+- source .venv/bin/activate
+- pip install exonum-launcher-java-plugins
+- python -m exonum_launcher --help
+- python -m exonum_launcher -i deploy-start-config.yml
 
-```shell
-mvn package
-```
+# CHEATSSHEET
 
-To also run the integration tests, invoke:
+> **https://exonum.com/doc/version/1.0.0/get-started/first-java-service/**
 
-```shell
-mvn verify
-```
+http://localhost:8000/api/services/supervisor/config-proposal
+http://localhost:8000/api/services/supervisor/consensus-config
+http://127.0.0.1:8200/api/explorer/v1/transactions
+/api/explorer/v1/transactions?hash=
+
+
