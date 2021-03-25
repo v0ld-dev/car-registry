@@ -16,17 +16,25 @@
 
 package com.example.car.client;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
+import static java.nio.file.Files.readString;
 
 import com.example.car.messages.VehicleOuterClass.Vehicle;
+import com.exonum.binding.common.crypto.*;
 import com.exonum.client.ExonumClient;
 import com.google.common.net.UrlEscapers;
+
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.file.Path;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ThreadLocalRandom;
+
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -35,6 +43,11 @@ import picocli.CommandLine.Parameters;
     aliases = {"fv"},
     description = {"Finds a vehicle in the registry by its ID"})
 public class FindVehicleCommand implements Callable<Integer> {
+
+  private static final CryptoFunction DEFAULT_CRYPTO_FUNCTION = CryptoFunctions.ed25519();
+
+  private KeyPair keys;
+  private CryptoFunction cryptoFunction;
 
   @ArgGroup(exclusive = true, multiplicity = "1")
   ServiceIds serviceIds;
@@ -78,11 +91,40 @@ public class FindVehicleCommand implements Callable<Integer> {
     return serviceInfoFinder.getName();
   }
 
-  private URI buildRequestUri(String serviceName) {
+  private URI buildRequestUri(String serviceName) throws IOException {
+
+                              var keyPair = readKeyPair();
+                              this.keys = checkNotNull(keyPair);
+                              this.cryptoFunction = checkNotNull(DEFAULT_CRYPTO_FUNCTION);
+
+                              //TODO should be some seed/nonce
+                              byte[] exonumMessage =  new byte[20];
+                              ThreadLocalRandom.current().nextBytes(exonumMessage);
+
+                              byte[] signature = cryptoFunction.signMessage(exonumMessage, keys.getPrivateKey());
+                              System.out.println("signature: " + signature);
+
+                              //TEMPORARY check sign for proof of concept
+                              var res = cryptoFunction.verify(exonumMessage, signature, keyPair.getPublicKey());
+                              System.out.println("result verify: " + res);
+
+
+    // TODO should pass signature and exonumMessage to uri. Will be good if it's will be post request
+
     var escaper = UrlEscapers.urlPathSegmentEscaper();
     var uri = String.format("%s/api/services/%s/vehicle/example1/%s",
         Config.NODE_JAVA_API_HOST, escaper.escape(serviceName), escaper.escape(vehicleId));
     System.out.println("uri: "+ uri);
     return URI.create(uri);
+  }
+
+  private static KeyPair readKeyPair() throws IOException {
+    var privateKeyStr = readString(Path.of(GenerateKeyCommand.EXONUM_ID_FILENAME));
+    var privateKey = PrivateKey.fromHexString(privateKeyStr);
+
+    var pubKeyStr = readString(Path.of(GenerateKeyCommand.EXONUM_ID_PUB_FILENAME));
+    var pubKey = PublicKey.fromHexString(pubKeyStr);
+
+    return KeyPair.newInstance(privateKey, pubKey);
   }
 }

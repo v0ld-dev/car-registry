@@ -83,6 +83,7 @@ public final class MyService extends AbstractService {
   // ci-block ci-add-vehicle {
   @Transaction(ADD_VEHICLE_TX_ID)
   public void addVehicle(Transactions.AddVehicle args, ExecutionContext context) {
+
     var serviceData = context.getServiceData();
     var schema = new MySchema(serviceData);
     ProofMapIndexProxy<String, Vehicle> vehicles = schema.vehicles();
@@ -104,7 +105,7 @@ public final class MyService extends AbstractService {
   // }
   /*
   * 1. Есть юзер
-  * 2. У юзера могут быть несколько машин
+  * -- 2. У юзера могут быть несколько машин
   * 3. У юзера может быть несколько кошельков
   * 4. Юзер должен уметь переводить бабло со своего кошелька другому юзеру (крепим по pubk)
   * 5. Создать кошелек нельзя если нет юзера

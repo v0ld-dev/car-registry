@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.Callable;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Option;
 
@@ -106,5 +108,5 @@ abstract class AbstractSubmitTxCommand implements Callable<Integer> {
     return KeyPair.newInstance(privateKey, pubKey);
   }
 
-  protected abstract TransactionMessage createTxMessage(int serviceId, KeyPair keyPair);
+  protected abstract TransactionMessage createTxMessage(int serviceId, KeyPair keyPair) throws InvalidProtocolBufferException;
 }

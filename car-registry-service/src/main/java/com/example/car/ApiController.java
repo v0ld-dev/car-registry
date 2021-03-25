@@ -16,6 +16,7 @@
 
 package com.example.car;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
 import static com.exonum.binding.common.serialization.json.JsonSerializer.json;
@@ -23,11 +24,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 
 import com.example.car.messages.VehicleOuterClass;
-import com.exonum.binding.common.crypto.PublicKey;
+import com.exonum.binding.common.crypto.*;
 import com.exonum.binding.core.service.Node;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 
@@ -37,8 +39,11 @@ import java.util.function.Function;
 
 final class ApiController {
 
+  private static final CryptoFunction DEFAULT_CRYPTO_FUNCTION = CryptoFunctions.ed25519();
+
   private final MyService service;
   private final Node node;
+  private CryptoFunction cryptoFunction;
 
   ApiController(MyService service, Node node) {
     this.service = service;
@@ -48,6 +53,37 @@ final class ApiController {
   void mount(Router router) {
     router.get("/vehicle/example1/:id").handler(this::findVehicle);
     router.get("/vehicle/example2/:id").handler(this::findVehicleSEC);
+    router.post("/vehicle/get-by-pk").handler(this::findVehiclePOST);
+
+  }
+
+  private void findVehiclePOST(RoutingContext routingContext) {
+
+    this.cryptoFunction = checkNotNull(DEFAULT_CRYPTO_FUNCTION);
+    /*
+    {
+     "data": {"id": vehicleId, "seed": 1,  }
+     "sign": "AZASsadSA2DWS..."
+     }
+     */
+
+    JsonObject queryPost = routingContext.getBodyAsJson();
+
+    var vehicleOpt = node.withBlockchainData((blockchainData) -> service.findVehicle(queryPost.getJsonObject("data").getString("id"), blockchainData));
+    var pubKey = vehicleOpt.get().getPubKey();
+    var res = cryptoFunction.verify(queryPost.getBinary("data"), queryPost.getBinary("sign"),  PublicKey.fromBytes(pubKey.getData().toByteArray()));
+
+    if (vehicleOpt.isPresent() && res) {
+      var vehicle = vehicleOpt.get();
+      routingContext.response()
+              .putHeader("Content-Type", "application/octet-stream")
+              .end(Buffer.buffer(vehicle.toByteArray()));
+    } else {
+      // Respond that the vehicle with such ID is not found
+      routingContext.response()
+              .setStatusCode(HTTP_NOT_FOUND)
+              .end();
+    }
   }
 
   /**
@@ -82,8 +118,6 @@ final class ApiController {
     var vehicleOpt = node.withBlockchainData(
         (blockchainData) -> service.findVehicle(vehicleId, blockchainData));
     if (vehicleOpt.isPresent()) {
-      //TODO: check public key from vehicle == msg.sender. To solve this issue you need
-      // Respond with the vehicle details
       var vehicle = vehicleOpt.get();
       routingContext.response()
           .putHeader("Content-Type", "application/octet-stream")

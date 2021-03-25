@@ -21,6 +21,9 @@ import com.example.car.messages.VehicleOuterClass.Vehicle;
 import com.exonum.binding.common.crypto.KeyPair;
 import com.exonum.binding.common.message.TransactionMessage;
 import java.util.concurrent.Callable;
+
+import com.exonum.messages.crypto.Types;
+import com.google.protobuf.InvalidProtocolBufferException;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
@@ -45,7 +48,8 @@ public final class AddVehicleCommand extends AbstractSubmitTxCommand implements 
   String owner;
 
   @Override
-  protected TransactionMessage createTxMessage(int serviceId, KeyPair keyPair) {
+  protected TransactionMessage createTxMessage(int serviceId, KeyPair keyPair) throws InvalidProtocolBufferException {
+    System.out.println(Types.PublicKey.parseFrom(keyPair.getPublicKey().toBytes()));
     return TransactionMessage.builder()
         .serviceId(serviceId)
         .transactionId(ADD_VEHICLE_TX_ID)
@@ -56,7 +60,8 @@ public final class AddVehicleCommand extends AbstractSubmitTxCommand implements 
                         .setId(id)
                         .setMake(make)
                         .setModel(model)
-                        .setOwner(owner))
+                        .setOwner(owner)
+                        .setPubKey(Types.PublicKey.parseFrom(keyPair.getPublicKey().toBytes())))
                 .build())
         .sign(keyPair);
   }
