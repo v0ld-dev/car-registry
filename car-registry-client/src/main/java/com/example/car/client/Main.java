@@ -16,9 +16,10 @@
 
 package com.example.car.client;
 
-import java.util.concurrent.Callable;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+
+import java.util.concurrent.Callable;
 
 /**
  * The main command of the car registry client.
@@ -29,7 +30,8 @@ import picocli.CommandLine.Command;
         ChangeOwnerCommand.class,
         FindVehicleCommand.class,
         GenerateKeyCommand.class,
-        FindVehicleCommandPost.class
+        FindVehicleCommandPost.class,
+        FindVehicleCommandGET.class
     },
     mixinStandardHelpOptions = true
 )

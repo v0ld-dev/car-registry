@@ -4,12 +4,10 @@ package example.vehicle;
 
 option java_package = "com.example.car.messages";
 
-import "exonum/crypto/types.proto";
-
 message Vehicle {
   string id = 1;
   string make = 2;
   string model = 3;
   string owner = 4;
-  exonum.crypto.PublicKey pub_key = 5;
+  string pub_key = 5;
 }

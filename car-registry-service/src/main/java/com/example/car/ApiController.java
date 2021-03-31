@@ -16,25 +16,24 @@
 
 package com.example.car;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
-import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
-import static com.exonum.binding.common.serialization.json.JsonSerializer.json;
-import static com.google.common.base.Preconditions.checkArgument;
-
-
-import com.example.car.messages.VehicleOuterClass;
-import com.exonum.binding.common.crypto.*;
+import com.exonum.binding.common.crypto.CryptoFunction;
+import com.exonum.binding.common.crypto.CryptoFunctions;
+import com.exonum.binding.common.crypto.PublicKey;
 import com.exonum.binding.core.service.Node;
+import com.google.common.io.BaseEncoding;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 
-import java.util.Optional;
 import java.util.function.Function;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 
 
 final class ApiController {
@@ -51,15 +50,18 @@ final class ApiController {
   }
 
   void mount(Router router) {
+    router.post("/vehicle/get-by-pk")
+            .handler(BodyHandler.create())
+            .handler(this::findVehiclePOST);
     router.get("/vehicle/example1/:id").handler(this::findVehicle);
-    router.get("/vehicle/example2/:id").handler(this::findVehicleSEC);
-    router.post("/vehicle/get-by-pk").handler(this::findVehiclePOST);
+    router.get("/vehicle/example2/:id/:sign").handler(this::findVehicleSEC);
+
 
   }
 
   private void findVehiclePOST(RoutingContext routingContext) {
-
-    this.cryptoFunction = checkNotNull(DEFAULT_CRYPTO_FUNCTION);
+    try {
+      this.cryptoFunction = checkNotNull(DEFAULT_CRYPTO_FUNCTION);
     /*
     {
      "data": {"id": vehicleId, "seed": 1,  }
@@ -67,11 +69,57 @@ final class ApiController {
      }
      */
 
-    JsonObject queryPost = routingContext.getBodyAsJson();
+      JsonObject queryPost = routingContext.getBodyAsJson();
+      var vehicleOpt = node.withBlockchainData((blockchainData) -> service.findVehicle(queryPost.getJsonObject("data").getString("id"), blockchainData));
+      var pubKey = vehicleOpt.get().getPubKey();
+      byte[] bvehicleObj = queryPost.getJsonObject("data").toString().getBytes();
+      byte[] _sign = BaseEncoding.base16().lowerCase().decode(queryPost.getString("sign"));
+      PublicKey ppk = PublicKey.fromBytes(BaseEncoding.base16().lowerCase().decode(pubKey));
+      // string hex pubkey to crypto.PublicKey
+      var res = cryptoFunction.verify(bvehicleObj, _sign, ppk);
 
-    var vehicleOpt = node.withBlockchainData((blockchainData) -> service.findVehicle(queryPost.getJsonObject("data").getString("id"), blockchainData));
+      if (vehicleOpt.isPresent() && res) {
+        var vehicle = vehicleOpt.get();
+        routingContext.response()
+                .putHeader("Content-Type", "application/octet-stream")
+                .end(Buffer.buffer(vehicle.toByteArray()));
+      } else {
+        // Respond that the vehicle with such ID is not found
+        routingContext.response()
+                .setStatusCode(HTTP_NOT_FOUND)
+                .end();
+      }
+
+    }catch (Throwable e){
+      e.printStackTrace();
+    }
+  }
+
+  /**
+   * Find by id, where id is public key
+   * @param routingContext
+   */
+  private void findVehicleSEC(RoutingContext routingContext) {
+    try{
+      this.cryptoFunction = checkNotNull(DEFAULT_CRYPTO_FUNCTION);
+
+    // Extract the requested vehicle ID
+    var vehicleId = routingContext.pathParam("id");
+    //System.out.println(vehicleId);
+    var inbound_sign = routingContext.pathParam("sign");
+    //System.out.println(inbound_sign);
+    // Find it in the registry. The Node#withBlockchainData provides
+    // the required context with the current, immutable database state.
+    var vehicleOpt = node.withBlockchainData((blockchainData) -> service.findVehicle(vehicleId, blockchainData));
+
+    // get pk from blockchain state (stored in)
     var pubKey = vehicleOpt.get().getPubKey();
-    var res = cryptoFunction.verify(queryPost.getBinary("data"), queryPost.getBinary("sign"),  PublicKey.fromBytes(pubKey.getData().toByteArray()));
+    //System.out.println(pubKey);
+      byte[] bvehicleId = vehicleId.getBytes();
+      byte[] binbound_sign = BaseEncoding.base16().lowerCase().decode(inbound_sign);
+      PublicKey ppk = PublicKey.fromBytes(BaseEncoding.base16().lowerCase().decode(pubKey));
+    // string hex pubkey to crypto.PublicKey
+    var res = cryptoFunction.verify(bvehicleId, binbound_sign, ppk);
 
     if (vehicleOpt.isPresent() && res) {
       var vehicle = vehicleOpt.get();
@@ -84,29 +132,10 @@ final class ApiController {
               .setStatusCode(HTTP_NOT_FOUND)
               .end();
     }
+
+  }catch (Throwable e){
+    e.printStackTrace();
   }
-
-  /**
-   * Find by id, where id is public key
-   * @param routingContext
-   */
-  private void findVehicleSEC(RoutingContext routingContext) {
-    var _vehicleId = routingContext.pathParam("id");
-    PublicKey valletId =  getRequiredParameter(routingContext.request(), _vehicleId, PublicKey::fromHexString);
-
-    Optional<VehicleOuterClass.Vehicle> vehicle = service.findVehicle(valletId, node);
-
-    if (vehicle.isPresent()) {
-      routingContext.response()
-              .putHeader(CONTENT_TYPE, "application/json")
-              .end(json().toJson(vehicle.get()));
-    } else {
-      routingContext.response()
-              .setStatusCode(HTTP_NOT_FOUND)
-              .end();
-    }
-
-
   }
 
 

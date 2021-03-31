@@ -18,11 +18,14 @@ package com.example.car.client;
 
 import com.example.car.messages.Transactions;
 import com.example.car.messages.VehicleOuterClass.Vehicle;
-import com.exonum.binding.common.crypto.KeyPair;
+import com.exonum.binding.common.crypto.*;
 import com.exonum.binding.common.message.TransactionMessage;
+
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 
 import com.exonum.messages.crypto.Types;
+import com.google.common.io.BaseEncoding;
 import com.google.protobuf.InvalidProtocolBufferException;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -49,7 +52,8 @@ public final class AddVehicleCommand extends AbstractSubmitTxCommand implements 
 
   @Override
   protected TransactionMessage createTxMessage(int serviceId, KeyPair keyPair) throws InvalidProtocolBufferException {
-    System.out.println(Types.PublicKey.parseFrom(keyPair.getPublicKey().toBytes()));
+    System.out.println(Arrays.toString(keyPair.getPublicKey().toBytes()));
+    System.out.println(BaseEncoding.base16().lowerCase().encode(keyPair.getPublicKey().toBytes()));
     return TransactionMessage.builder()
         .serviceId(serviceId)
         .transactionId(ADD_VEHICLE_TX_ID)
@@ -61,7 +65,7 @@ public final class AddVehicleCommand extends AbstractSubmitTxCommand implements 
                         .setMake(make)
                         .setModel(model)
                         .setOwner(owner)
-                        .setPubKey(Types.PublicKey.parseFrom(keyPair.getPublicKey().toBytes())))
+                        .setPubKey(BaseEncoding.base16().lowerCase().encode(keyPair.getPublicKey().toBytes())))
                 .build())
         .sign(keyPair);
   }
